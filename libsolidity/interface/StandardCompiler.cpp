@@ -59,20 +59,20 @@ Json::Value formatError(
 	Json::Value const& _secondarySourceLocation = Json::Value()
 )
 {
-	Json::Value error = Json::objectValue;
+	Json error = Json::object();
 	error["type"] = _type;
 	error["component"] = _component;
 	error["severity"] = Error::formatErrorSeverityLowercase(_severity);
 	error["message"] = _message;
 	error["formattedMessage"] = (_formattedMessage.length() > 0) ? _formattedMessage : _message;
-	if (_sourceLocation.isObject())
+	if (_sourceLocation.is_object())
 		error["sourceLocation"] = _sourceLocation;
 	if (_secondarySourceLocation.isArray())
 		error["secondarySourceLocations"] = _secondarySourceLocation;
 	return error;
 }
 
-Json::Value formatFatalError(string const& _type, string const& _message)
+Json formatFatalError(string const& _type, string const& _message)
 {
 	Json::Value output = Json::objectValue;
 	output["errors"] = Json::arrayValue;
@@ -211,11 +211,11 @@ bool isArtifactRequested(Json::Value const& _outputSelection, string const& _art
 ///
 bool isArtifactRequested(Json::Value const& _outputSelection, string const& _file, string const& _contract, string const& _artifact, bool _wildcardMatchesExperimental)
 {
-	if (!_outputSelection.isObject())
+	if (!_outputSelection.is_object())
 		return false;
 
 	for (auto const& file: { _file, string("*") })
-		if (_outputSelection.isMember(file) && _outputSelection[file].isObject())
+		if (_outputSelection.find(file) != _outputSelection.end() && _outputSelection[file].is_object())
 		{
 			/// For SourceUnit-level targets (such as AST) only allow empty name, otherwise
 			/// for Contract-level targets try both contract name and wildcard
@@ -330,7 +330,7 @@ bool isIRRequested(Json::Value const& _outputSelection)
 
 Json::Value formatLinkReferences(std::map<size_t, std::string> const& linkReferences)
 {
-	Json::Value ret(Json::objectValue);
+	Json ret(Json::object());
 
 	for (auto const& ref: linkReferences)
 	{
@@ -342,14 +342,14 @@ Json::Value formatLinkReferences(std::map<size_t, std::string> const& linkRefere
 		string file = (colon != string::npos ? fullname.substr(0, colon) : "");
 		string name = (colon != string::npos ? fullname.substr(colon + 1) : fullname);
 
-		Json::Value fileObject = ret.get(file, Json::objectValue);
-		Json::Value libraryArray = fileObject.get(name, Json::arrayValue);
+		Json fileObject = ret.value(file, Json::object());
+		Json libraryArray = fileObject.value(name, Json::array());
 
-		Json::Value entry = Json::objectValue;
-		entry["start"] = Json::UInt(ref.first);
+		Json entry = Json::object();
+		entry["start"] = Json(ref.first);
 		entry["length"] = 20;
 
-		libraryArray.append(entry);
+		libraryArray.emplace_back(entry);
 		fileObject[name] = libraryArray;
 		ret[file] = fileObject;
 	}
@@ -627,7 +627,7 @@ std::variant<StandardCompiler::InputsAndSettings, Json::Value> StandardCompiler:
 {
 	InputsAndSettings ret;
 
-	if (!_input.isObject())
+	if (!_input.is_object())
 		return formatFatalError("JSONError", "Input is not a JSON object.");
 
 	if (auto result = checkRootKeys(_input))
@@ -635,40 +635,40 @@ std::variant<StandardCompiler::InputsAndSettings, Json::Value> StandardCompiler:
 
 	ret.language = _input["language"].asString();
 
-	Json::Value const& sources = _input["sources"];
+	Json const& sources = _input["sources"];
 
-	if (!sources.isObject() && !sources.isNull())
+	if (!sources.is_object() && !sources.is_null())
 		return formatFatalError("JSONError", "\"sources\" is not a JSON object.");
 
 	if (sources.empty())
 		return formatFatalError("JSONError", "No input sources specified.");
 
-	ret.errors = Json::arrayValue;
+	ret.errors = Json::array();
 
-	for (auto const& sourceName: sources.getMemberNames())
+	for (auto const& sourceName: sources.items())
 	{
 		string hash;
 
 		if (auto result = checkSourceKeys(sources[sourceName], sourceName))
 			return *result;
 
-		if (sources[sourceName]["keccak256"].isString())
-			hash = sources[sourceName]["keccak256"].asString();
+		if (sources[sourceName.key()]["keccak256"].is_string())
+			hash = sources[sourceName.key()]["keccak256"].get<string>();
 
-		if (sources[sourceName]["content"].isString())
+		if (sources[sourceName.key()]["content"].is_string())
 		{
-			string content = sources[sourceName]["content"].asString();
+			string content = sources[sourceName.key()]["content"].get<string>();
 			if (!hash.empty() && !hashMatchesContent(hash, content))
-				ret.errors.append(formatError(
+				ret.errors.emplace_back(formatError(
 					Error::Severity::Error,
 					"IOError",
 					"general",
-					"Mismatch between content and supplied hash for \"" + sourceName + "\""
+					"Mismatch between content and supplied hash for \"" + sourceName.key() + "\""
 				));
 			else
 				ret.sources[sourceName] = content;
 		}
-		else if (sources[sourceName]["urls"].isArray())
+		else if (sources[sourceName.key()]["urls"].is_array())
 		{
 			if (!m_readFile)
 				return formatFatalError("JSONError", "No import callback supplied, but URL is requested.");
@@ -676,7 +676,7 @@ std::variant<StandardCompiler::InputsAndSettings, Json::Value> StandardCompiler:
 			bool found = false;
 			vector<string> failures;
 
-			for (auto const& url: sources[sourceName]["urls"])
+			for (auto const& url: sources[sourceName.key()]["urls"])
 			{
 				if (!url.isString())
 					return formatFatalError("JSONError", "URL must be a string.");
@@ -688,7 +688,7 @@ std::variant<StandardCompiler::InputsAndSettings, Json::Value> StandardCompiler:
 							Error::Severity::Error,
 							"IOError",
 							"general",
-							"Mismatch between content and supplied hash for \"" + sourceName + "\" at \"" + url.asString() + "\""
+							"Mismatch between content and supplied hash for \"" + sourceName.key() + "\" at \"" + url.get<string>() + "\""
 						));
 					else
 					{
@@ -698,13 +698,13 @@ std::variant<StandardCompiler::InputsAndSettings, Json::Value> StandardCompiler:
 					}
 				}
 				else
-					failures.push_back("Cannot import url (\"" + url.asString() + "\"): " + result.responseOrErrorMessage);
+					failures.push_back("Cannot import url (\"" + url.get<string>() + "\"): " + result.responseOrErrorMessage);
 			}
 
 			for (auto const& failure: failures)
 			{
 				/// If the import succeeded, let mark all the others as warnings, otherwise all of them are errors.
-				ret.errors.append(formatError(
+				ret.errors.emplace_back(formatError(
 					found ? Error::Severity::Warning : Error::Severity::Error,
 					"IOError",
 					"general",
@@ -838,7 +838,7 @@ std::variant<StandardCompiler::InputsAndSettings, Json::Value> StandardCompiler:
 	Json::Value jsonLibraries = settings.get("libraries", Json::Value(Json::objectValue));
 	if (!jsonLibraries.isObject())
 		return formatFatalError("JSONError", "\"libraries\" is not a JSON object.");
-	for (auto const& sourceName: jsonLibraries.getMemberNames())
+	for (auto const& sourceName: jsonLibraries.items())
 	{
 		auto const& jsonSourceName = jsonLibraries[sourceName];
 		if (!jsonSourceName.isObject())
@@ -875,7 +875,7 @@ std::variant<StandardCompiler::InputsAndSettings, Json::Value> StandardCompiler:
 		}
 	}
 
-	Json::Value metadataSettings = settings.get("metadata", Json::Value());
+	Json metadataSettings = settings.get("metadata", Json());
 
 	if (auto result = checkMetadataKeys(metadataSettings))
 		return *result;
@@ -892,7 +892,7 @@ std::variant<StandardCompiler::InputsAndSettings, Json::Value> StandardCompiler:
 				CompilerStack::MetadataHash::None;
 	}
 
-	Json::Value outputSelection = settings.get("outputSelection", Json::Value());
+	Json outputSelection = settings.get("outputSelection", Json());
 
 	if (auto jsonError = checkOutputSelection(outputSelection))
 		return *jsonError;
@@ -1055,7 +1055,7 @@ Json::Value StandardCompiler::compileSolidity(StandardCompiler::InputsAndSetting
 		{
 			Error const& err = dynamic_cast<Error const&>(*error);
 
-			errors.append(formatErrorWithException(
+			errors.emplace_back(formatErrorWithException(
 				compilerStack,
 				*error,
 				Error::errorSeverity(err.type()),
@@ -1069,7 +1069,7 @@ Json::Value StandardCompiler::compileSolidity(StandardCompiler::InputsAndSetting
 	/// This is only thrown in a very few locations.
 	catch (Error const& _error)
 	{
-		errors.append(formatErrorWithException(
+		errors.emplace_back(formatErrorWithException(
 			compilerStack,
 			_error,
 			Error::Severity::Error,
@@ -1081,7 +1081,7 @@ Json::Value StandardCompiler::compileSolidity(StandardCompiler::InputsAndSetting
 	/// This should not be leaked from compile().
 	catch (FatalError const& _exception)
 	{
-		errors.append(formatError(
+		errors.emplace_back(formatError(
 			Error::Severity::Error,
 			"FatalError",
 			"general",
@@ -1090,7 +1090,7 @@ Json::Value StandardCompiler::compileSolidity(StandardCompiler::InputsAndSetting
 	}
 	catch (CompilerError const& _exception)
 	{
-		errors.append(formatErrorWithException(
+		errors.emplace_back(formatErrorWithException(
 			compilerStack,
 			_exception,
 			Error::Severity::Error,
@@ -1101,7 +1101,7 @@ Json::Value StandardCompiler::compileSolidity(StandardCompiler::InputsAndSetting
 	}
 	catch (InternalCompilerError const& _exception)
 	{
-		errors.append(formatErrorWithException(
+		errors.emplace_bakc(formatErrorWithException(
 			compilerStack,
 			_exception,
 			Error::Severity::Error,
@@ -1112,7 +1112,7 @@ Json::Value StandardCompiler::compileSolidity(StandardCompiler::InputsAndSetting
 	}
 	catch (UnimplementedFeatureError const& _exception)
 	{
-		errors.append(formatErrorWithException(
+		errors.emplace_back(formatErrorWithException(
 			compilerStack,
 			_exception,
 			Error::Severity::Error,
@@ -1145,7 +1145,7 @@ Json::Value StandardCompiler::compileSolidity(StandardCompiler::InputsAndSetting
 	}
 	catch (util::Exception const& _exception)
 	{
-		errors.append(formatError(
+		errors.emplace_back(formatError(
 			Error::Severity::Error,
 			"Exception",
 			"general",
@@ -1154,7 +1154,7 @@ Json::Value StandardCompiler::compileSolidity(StandardCompiler::InputsAndSetting
 	}
 	catch (std::exception const& _e)
 	{
-		errors.append(formatError(
+		errors.emplace_back(formatError(
 			Error::Severity::Error,
 			"Exception",
 			"general",
@@ -1163,7 +1163,7 @@ Json::Value StandardCompiler::compileSolidity(StandardCompiler::InputsAndSetting
 	}
 	catch (...)
 	{
-		errors.append(formatError(
+		errors.emplace_back(formatError(
 			Error::Severity::Error,
 			"Exception",
 			"general",
@@ -1184,7 +1184,7 @@ Json::Value StandardCompiler::compileSolidity(StandardCompiler::InputsAndSetting
 	)
 		return formatFatalError("InternalCompilerError", "No error reported, but compilation failed.");
 
-	Json::Value output = Json::objectValue;
+	Json output = Json::object();
 
 	if (errors.size() > 0)
 		output["errors"] = std::move(errors);
@@ -1195,7 +1195,7 @@ Json::Value StandardCompiler::compileSolidity(StandardCompiler::InputsAndSetting
 
 	bool const wildcardMatchesExperimental = false;
 
-	output["sources"] = Json::objectValue;
+	output["sources"] = Json::object();
 	unsigned sourceIndex = 0;
 	if (compilerStack.state() >= CompilerStack::State::Parsed && (!compilerStack.hasError() || _inputsAndSettings.parserErrorRecovery))
 		for (string const& sourceName: compilerStack.sourceNames())
@@ -1207,7 +1207,7 @@ Json::Value StandardCompiler::compileSolidity(StandardCompiler::InputsAndSetting
 			output["sources"][sourceName] = sourceResult;
 		}
 
-	Json::Value contractsOutput = Json::objectValue;
+	Json: contractsOutput = Json::object();
 	for (string const& contractName: analysisPerformed ? compilerStack.contractNames() : vector<string>())
 	{
 		size_t colon = contractName.rfind(':');
@@ -1411,8 +1411,7 @@ Json::Value StandardCompiler::compileYul(InputsAndSettings _inputsAndSettings)
 	return output;
 }
 
-
-Json::Value StandardCompiler::compile(Json::Value const& _input) noexcept
+Json StandardCompiler::compile(Json const& _input) noexcept
 {
 	YulStringRepository::reset();
 
@@ -1429,13 +1428,9 @@ Json::Value StandardCompiler::compile(Json::Value const& _input) noexcept
 		else
 			return formatFatalError("JSONError", "Only \"Solidity\" or \"Yul\" is supported as a language.");
 	}
-	catch (Json::LogicError const& _exception)
+	catch (Json::exception const& _exception)
 	{
-		return formatFatalError("InternalCompilerError", string("JSON logic exception: ") + _exception.what());
-	}
-	catch (Json::RuntimeError const& _exception)
-	{
-		return formatFatalError("InternalCompilerError", string("JSON runtime exception: ") + _exception.what());
+		return formatFatalError("InternalCompilerError", string("JSON exception: ") + _exception.what());
 	}
 	catch (util::Exception const& _exception)
 	{
@@ -1449,7 +1444,7 @@ Json::Value StandardCompiler::compile(Json::Value const& _input) noexcept
 
 string StandardCompiler::compile(string const& _input) noexcept
 {
-	Json::Value input;
+	Json input;
 	string errors;
 	try
 	{
@@ -1462,7 +1457,7 @@ string StandardCompiler::compile(string const& _input) noexcept
 	}
 
 	// cout << "Input: " << input.toStyledString() << endl;
-	Json::Value output = compile(input);
+	Json output = compile(input);
 	// cout << "Output: " << output.toStyledString() << endl;
 
 	try

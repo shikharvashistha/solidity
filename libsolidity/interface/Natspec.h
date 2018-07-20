@@ -26,10 +26,10 @@
 
 #pragma once
 
-#include <json/json.h>
 #include <memory>
 #include <string>
 #include <libsolidity/ast/AST.h>
+#include <libsolutil/JSON.h>
 
 namespace solidity::frontend
 {
@@ -46,12 +46,12 @@ public:
 	/// Get the User documentation of the contract
 	/// @param _contractDef The contract definition
 	/// @return             A JSON representation of the contract's user documentation
-	static Json::Value userDocumentation(ContractDefinition const& _contractDef);
+	static Json userDocumentation(ContractDefinition const& _contractDef);
 	/// Generates the Developer's documentation of the contract
 	/// @param _contractDef The contract definition
 	/// @return             A JSON representation
 	///                     of the contract's developer documentation
-	static Json::Value devDocumentation(ContractDefinition const& _contractDef);
+	static Json devDocumentation(ContractDefinition const& _contractDef);
 
 private:
 	/// @returns concatenation of all content under the given tag name.

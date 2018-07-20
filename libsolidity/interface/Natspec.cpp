@@ -35,9 +35,9 @@ using namespace std;
 using namespace solidity;
 using namespace solidity::frontend;
 
-Json::Value Natspec::userDocumentation(ContractDefinition const& _contractDef)
+Json Natspec::userDocumentation(ContractDefinition const& _contractDef)
 {
-	Json::Value doc;
+	Json doc;
 
 	doc["version"] = Json::Value(c_natspecVersion);
 	doc["kind"]    = Json::Value("user");
@@ -99,7 +99,7 @@ Json::Value Natspec::userDocumentation(ContractDefinition const& _contractDef)
 	return doc;
 }
 
-Json::Value Natspec::devDocumentation(ContractDefinition const& _contractDef)
+Json Natspec::devDocumentation(ContractDefinition const& _contractDef)
 {
 	Json::Value doc = extractCustomDoc(_contractDef.annotation().docTags);
 
