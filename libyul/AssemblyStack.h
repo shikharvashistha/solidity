@@ -22,9 +22,10 @@
 
 #pragma once
 
+#include <liblangutil/CharStreamProvider.h>
+#include <liblangutil/DebugInfoSelection.h>
 #include <liblangutil/ErrorReporter.h>
 #include <liblangutil/EVMVersion.h>
-#include <liblangutil/CharStreamProvider.h>
 
 #include <libyul/Object.h>
 #include <libyul/ObjectParser.h>
@@ -116,7 +117,10 @@ public:
 	langutil::ErrorList const& errors() const { return m_errors; }
 
 	/// Pretty-print the input after having parsed it.
-	std::string print(langutil::CharStreamProvider const* _soliditySourceProvider = nullptr) const;
+	std::string print(
+		langutil::DebugInfoSelection const& _debugInfoSelection = langutil::DebugInfoSelection::Default(),
+		langutil::CharStreamProvider const* _soliditySourceProvider = nullptr
+	) const;
 
 	/// Return the parsed and analyzed object.
 	std::shared_ptr<Object> parserResult() const;

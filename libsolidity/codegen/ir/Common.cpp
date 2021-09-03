@@ -139,6 +139,7 @@ string dispenseLocationComment(langutil::SourceLocation const& _location, IRGene
 		_location,
 		_context.sourceIndices(),
 		true /* _statement */,
+		_context.debugInfoSelection(),
 		_context.soliditySourceProvider()
 	);
 }

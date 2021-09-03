@@ -262,10 +262,16 @@ string AsmPrinter::formatSourceLocationComment(
 	SourceLocation const& _location,
 	map<string, unsigned> const& _nameToSourceIndex,
 	bool _statement,
+	DebugInfoSelection const& _debugInfoSelection,
 	CharStreamProvider const* _soliditySourceProvider
 )
 {
 	yulAssert(!_nameToSourceIndex.empty(), "");
+	if (_debugInfoSelection.snippet)
+		yulAssert(_debugInfoSelection.location, "@src tag must always contain the source location");
+
+	if (_debugInfoSelection.none())
+		return "";
 
 	string sourceIndex = "-1";
 	string solidityCodeSnippet = "";
@@ -273,7 +279,7 @@ string AsmPrinter::formatSourceLocationComment(
 	{
 		sourceIndex = to_string(_nameToSourceIndex.at(*_location.sourceName));
 
-		if (_soliditySourceProvider)
+		if (_debugInfoSelection.snippet && _soliditySourceProvider)
 		{
 			solidityCodeSnippet = escapeAndQuoteString(
 				_soliditySourceProvider->charStream(*_location.sourceName).singleLineSnippet(_location)
@@ -304,6 +310,7 @@ string AsmPrinter::formatSourceLocationComment(shared_ptr<DebugData const> const
 {
 	if (
 		!_debugData ||
+		m_debugInfoSelection.none() ||
 		m_lastLocation == _debugData->location ||
 		m_nameToSourceIndex.empty()
 	)
@@ -315,6 +322,7 @@ string AsmPrinter::formatSourceLocationComment(shared_ptr<DebugData const> const
 		_debugData->location,
 		m_nameToSourceIndex,
 		_statement,
+		langutil::DebugInfoSelection::Default(),
 		m_soliditySourceProvider
 	) + (_statement ? "\n" : "");
 }

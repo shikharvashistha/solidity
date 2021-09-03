@@ -270,6 +270,13 @@ void CompilerStack::setMetadataHash(MetadataHash _metadataHash)
 	m_metadataHash = _metadataHash;
 }
 
+void CompilerStack::selectDebugInfo(DebugInfoSelection _debugInfoSelection)
+{
+	if (m_stackState >= CompilationSuccessful)
+		BOOST_THROW_EXCEPTION(CompilerError() << errinfo_comment("Must select debug info components before compilation."));
+	m_debugInfoSelection = _debugInfoSelection;
+}
+
 void CompilerStack::addSMTLib2Response(h256 const& _hash, string const& _response)
 {
 	if (m_stackState >= ParsedAndImported)
@@ -1322,7 +1329,7 @@ void CompilerStack::generateIR(ContractDefinition const& _contract)
 	for (auto const& pair: m_contracts)
 		otherYulSources.emplace(pair.second.contract, pair.second.yulIR);
 
-	IRGenerator generator(m_evmVersion, m_revertStrings, m_optimiserSettings, sourceIndices(), this);
+	IRGenerator generator(m_evmVersion, m_revertStrings, m_optimiserSettings, sourceIndices(), m_debugInfoSelection, this);
 	tie(compiledContract.yulIR, compiledContract.yulIROptimized) = generator.run(
 		_contract,
 		createCBORMetadata(compiledContract, /* _forIR */ true),

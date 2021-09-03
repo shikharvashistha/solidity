@@ -314,11 +314,14 @@ AssemblyStack::assembleEVMWithDeployed(optional<string_view> _deployName) const
 	return {make_shared<evmasm::Assembly>(assembly), {}};
 }
 
-string AssemblyStack::print(CharStreamProvider const* _soliditySourceProvider) const
+string AssemblyStack::print(
+	langutil::DebugInfoSelection const& _debugInfoSelection,
+	CharStreamProvider const* _soliditySourceProvider
+) const
 {
 	yulAssert(m_parserResult, "");
 	yulAssert(m_parserResult->code, "");
-	return m_parserResult->toString(&languageToDialect(m_language, m_evmVersion), _soliditySourceProvider) + "\n";
+	return m_parserResult->toString(&languageToDialect(m_language, m_evmVersion), _debugInfoSelection, _soliditySourceProvider) + "\n";
 }
 
 shared_ptr<Object> AssemblyStack::parserResult() const

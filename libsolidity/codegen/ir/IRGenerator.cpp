@@ -116,7 +116,7 @@ pair<string, string> IRGenerator::run(
 		" *                !USE AT YOUR OWN RISK!               *\n"
 		" *=====================================================*/\n\n";
 
-	return {warning + ir, warning + asmStack.print(m_context.soliditySourceProvider())};
+	return {warning + ir, warning + asmStack.print(m_context.debugInfoSelection(), m_context.soliditySourceProvider())};
 }
 
 string IRGenerator::generate(
@@ -1071,6 +1071,7 @@ void IRGenerator::resetContext(ContractDefinition const& _contract, ExecutionCon
 		m_context.revertStrings(),
 		m_optimiserSettings,
 		m_context.sourceIndices(),
+		m_context.debugInfoSelection(),
 		m_context.soliditySourceProvider()
 	);
 	newContext.copyFunctionIDsFrom(m_context);
