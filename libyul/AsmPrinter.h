@@ -83,7 +83,6 @@ public:
 	static std::string formatSourceLocationComment(
 		langutil::SourceLocation const& _location,
 		std::map<std::string, unsigned> const& _nameToSourceIndex,
-		bool _statement,
 		langutil::CharStreamProvider const* m_soliditySourceProvider = nullptr
 	);
 
