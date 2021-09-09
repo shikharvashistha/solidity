@@ -340,6 +340,7 @@ string IRGenerator::generateFunction(FunctionDefinition const& _function)
 	return m_context.functionCollector().createFunction(functionName, [&]() {
 		m_context.resetLocalVariables();
 		Whiskers t(R"(
+			/// @ast-id <astID>
 			<sourceLocationComment>
 			function <functionName>(<params>)<?+retParams> -> <retParams></+retParams> {
 				<retInit>
@@ -348,6 +349,7 @@ string IRGenerator::generateFunction(FunctionDefinition const& _function)
 			<contractSourceLocationComment>
 		)");
 
+		t("astID", to_string(_function.id()));
 		t("sourceLocationComment", dispenseLocationComment(_function));
 		t(
 			"contractSourceLocationComment",
