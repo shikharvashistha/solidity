@@ -68,8 +68,8 @@ public:
 		}
 	{}
 
-	/// Constructs a Yul parser that is using the source locations
-	/// from the comments (via @src).
+	/// Constructs a Yul parser that is using the debug data
+	/// from the comments (via @src and other tags).
 	explicit Parser(
 		langutil::ErrorReporter& _errorReporter,
 		Dialect const& _dialect,

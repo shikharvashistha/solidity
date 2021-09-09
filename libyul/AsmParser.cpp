@@ -103,7 +103,7 @@ unique_ptr<Block> Parser::parseInline(std::shared_ptr<Scanner> const& _scanner)
 	try
 	{
 		m_scanner = _scanner;
-		if (m_sourceNames)
+		if (m_useSourceLocationFrom == UseSourceLocationFrom::Comments)
 			fetchSourceLocationFromComment();
 		return make_unique<Block>(parseBlock());
 	}
@@ -127,16 +127,26 @@ void Parser::fetchSourceLocationFromComment()
 {
 	solAssert(m_sourceNames.has_value(), "");
 
-	if (m_scanner->currentCommentLiteral().empty())
+	// reset the AST ID, it is only valid for a single Yul AST node.
+	m_debugDataOverride = DebugData::create(m_debugDataOverride->location, nullopt);
+
+	// TODO refactor, so that we have two functions that set the individual components
+	// of the debug data and then it is created only once at the end.
+
+	optional<int> astID;
+
+	if (!m_scanner->currentCommentLiteral().empty())
 		return;
+
+	static regex const lineRE = std::regex(
+		R"~~((?:^|\s*)@src\s+)~~"                    // tag: @src
+		R"~~((-1|\d+):(-1|\d+):(-1|\d+)(?:\s+|$))~~" // index and location, e.g.: 1:234:-1
+		R"~~((?:"(?:[^"\\]|\\.)*"(?:\s+|$))?)~~",    // optional code snippet, e.g.: "string memory s = \"abc\";..."
+		std::regex_constants::ECMAScript | std::regex_constants::optimize
+	);
 
 	static regex const tagRegex = regex(
 		R"~~((?:^|\s+)(@[a-zA-Z0-9\-_]+)(?:\s+|$))~~", // tag, e.g: @src
-		regex_constants::ECMAScript | regex_constants::optimize
-	);
-	static regex const srcTagArgsRegex = regex(
-		R"~~(^(-1|\d+):(-1|\d+):(-1|\d+)(?:\s+|$))~~"  // index and location, e.g.: 1:234:-1
-		R"~~(("(?:[^"\\]|\\.)*"?)?)~~",                // optional code snippet, e.g.: "string memory s = \"abc\";..."
 		regex_constants::ECMAScript | regex_constants::optimize
 	);
 
@@ -152,6 +162,12 @@ void Parser::fetchSourceLocationFromComment()
 
 		if (tagMatch[1] == "@src")
 		{
+			static regex const srcTagArgsRegex = regex(
+				R"~~(^(-1|\d+):(-1|\d+):(-1|\d+)(?:\s+|$))~~"  // index and location, e.g.: 1:234:-1
+				R"~~(("(?:[^"\\]|\\.)*"?)?)~~",                // optional code snippet, e.g.: "string memory s = \"abc\";..."
+				regex_constants::ECMAScript | regex_constants::optimize
+			);
+
 			smatch srcTagArgsMatch;
 			if (!regex_search(position, commentLiteral.end(), srcTagArgsMatch, srcTagArgsRegex))
 			{
@@ -185,7 +201,7 @@ void Parser::fetchSourceLocationFromComment()
 			optional<int> const start = toInt(srcTagArgsMatch[2].str());
 			optional<int> const end = toInt(srcTagArgsMatch[3].str());
 
-			m_debugDataOverride = DebugData::create();
+			m_debugDataOverride = DebugData::create({}, astID);
 			if (!sourceIndex.has_value() || !start.has_value() || !end.has_value())
 				m_errorReporter.syntaxError(
 					6367_error,
@@ -194,7 +210,7 @@ void Parser::fetchSourceLocationFromComment()
 					"Expected non-negative integer values or -1 for source index and location."
 				);
 			else if (sourceIndex == -1)
-				m_debugDataOverride = DebugData::create(SourceLocation{start.value(), end.value(), nullptr});
+				m_debugDataOverride = DebugData::create(SourceLocation{start.value(), end.value(), nullptr}, astID);
 			else if (!(sourceIndex >= 0 && m_sourceNames->count(static_cast<unsigned>(sourceIndex.value()))))
 				m_errorReporter.syntaxError(
 					2674_error,
@@ -205,13 +221,38 @@ void Parser::fetchSourceLocationFromComment()
 			{
 				shared_ptr<string const> sourceName = m_sourceNames->at(static_cast<unsigned>(sourceIndex.value()));
 				solAssert(sourceName, "");
-				m_debugDataOverride = DebugData::create(SourceLocation{start.value(), end.value(), move(sourceName)});
+				m_debugDataOverride = DebugData::create(SourceLocation{start.value(), end.value(), move(sourceName)}, astID);
 			}
+		}
+		else if (tagMatch[1] == "@ast-id")
+		{
+			static regex const argRegex = regex(
+				R"~~(^(\d+))~~",
+				regex_constants::ECMAScript | regex_constants::optimize
+			);
+			smatch match;
+			optional<int> potentialASTID;
+			if (regex_search(position, commentLiteral.end(), match, argRegex))
+			{
+				solAssert(match.size() == 2, "");
+				position += match.position() + match.length();
+
+				potentialASTID = toInt(match[1].str());
+			}
+			if (!potentialASTID || *potentialASTID < 0 || static_cast<int64_t>(*potentialASTID) != *potentialASTID)
+			{
+				m_errorReporter.syntaxError(1749_error, commentLocation, "Invalid argument for @ast-id.");
+				return;
+			}
+			astID = potentialASTID;
 		}
 		else
 			// Ignore unrecognized tags.
 			continue;
 	}
+
+
+	m_debugDataOverride = DebugData::create(m_debugDataOverride->location, astID);
 }
 
 Block Parser::parseBlock()
