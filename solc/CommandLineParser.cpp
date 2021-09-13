@@ -77,6 +77,7 @@ static string const g_strInputFile = "input-file";
 static string const g_strInterface = "interface";
 static string const g_strYul = "yul";
 static string const g_strYulDialect = "yul-dialect";
+static string const g_strIRDebugInfo = "ir-debug-info";
 static string const g_strIR = "ir";
 static string const g_strIROptimized = "ir-optimized";
 static string const g_strIPFS = "ipfs";
@@ -281,6 +282,7 @@ bool CommandLineOptions::operator==(CommandLineOptions const& _other) const noex
 		output.evmVersion == _other.output.evmVersion &&
 		output.experimentalViaIR == _other.output.experimentalViaIR &&
 		output.revertStrings == _other.output.revertStrings &&
+		output.debugInfoSelection == _other.output.debugInfoSelection &&
 		output.stopAfter == _other.output.stopAfter &&
 		input.mode == _other.input.mode &&
 		assembly.targetMachine == _other.assembly.targetMachine &&
@@ -556,6 +558,13 @@ General Information)").c_str(),
 			g_strRevertStrings.c_str(),
 			po::value<string>()->value_name(boost::join(g_revertStringsArgs, ",")),
 			"Strip revert (and require) reason strings or add additional debugging information."
+		)
+		(
+			g_strIRDebugInfo.c_str(),
+			po::value<string>()->default_value(toString(DebugInfoSelection::Default())),
+			("Debug info components to be included in generated Yul and EVM assembly. "
+			"Value can be all, none or a comma-separated string listing one or more of the "
+			"following components: " + joinHumanReadable(DebugInfoSelection::componentMap() | ranges::views::keys) + ".").c_str()
 		)
 		(
 			g_strStopAfter.c_str(),
@@ -853,6 +862,23 @@ General Information)").c_str(),
 			return false;
 		}
 		m_options.output.revertStrings = *revertStrings;
+	}
+
+	if (!m_args[g_strIRDebugInfo].defaulted())
+	{
+		string optionValue = m_args[g_strIRDebugInfo].as<string>();
+		m_options.output.debugInfoSelection = DebugInfoSelection::fromString(optionValue);
+		if (!m_options.output.debugInfoSelection.has_value())
+		{
+			serr() << "Invalid value for --" << g_strIRDebugInfo << " option: " << optionValue << endl;
+			return false;
+		}
+
+		if (m_options.output.debugInfoSelection->snippet && !m_options.output.debugInfoSelection->location)
+		{
+			serr() << "To use 'snippet' with --" << g_strIRDebugInfo << " you must select also 'location'." << endl;
+			return false;
+		}
 	}
 
 	if (!parseCombinedJsonOption())
