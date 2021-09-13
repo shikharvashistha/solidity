@@ -101,9 +101,9 @@ struct SMTSolverChoice
 		return true;
 	}
 
-	bool none() { return !some(); }
-	bool some() { return cvc4 || smtlib2 || z3; }
-	bool all() { return cvc4 && smtlib2 && z3; }
+	bool none() const { return !some(); }
+	bool some() const { return cvc4 || smtlib2 || z3; }
+	bool all() const { return cvc4 && smtlib2 && z3; }
 };
 
 enum class CheckResult
