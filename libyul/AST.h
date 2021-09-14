@@ -29,6 +29,7 @@
 #include <liblangutil/SourceLocation.h>
 
 #include <memory>
+#include <optional>
 
 namespace solidity::yul
 {
