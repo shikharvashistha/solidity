@@ -887,7 +887,7 @@ string CompilerStack::assemblyString(string const& _contractName, StringMap cons
 
 	Contract const& currentContract = contract(_contractName);
 	if (currentContract.evmAssembly)
-		return currentContract.evmAssembly->assemblyString(_sourceCodes);
+		return currentContract.evmAssembly->assemblyString(m_debugInfoSelection, _sourceCodes);
 	else
 		return string();
 }
