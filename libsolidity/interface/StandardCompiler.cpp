@@ -1326,7 +1326,10 @@ Json::Value StandardCompiler::compileYul(InputsAndSettings _inputsAndSettings)
 	AssemblyStack stack(
 		_inputsAndSettings.evmVersion,
 		AssemblyStack::Language::StrictAssembly,
-		_inputsAndSettings.optimiserSettings
+		_inputsAndSettings.optimiserSettings,
+		_inputsAndSettings.debugInfoSelection.has_value() ?
+			_inputsAndSettings.debugInfoSelection.value() :
+			DebugInfoSelection::Default()
 	);
 	string const& sourceName = _inputsAndSettings.sources.begin()->first;
 	string const& sourceContents = _inputsAndSettings.sources.begin()->second;

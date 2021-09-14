@@ -95,7 +95,12 @@ pair<string, string> IRGenerator::run(
 {
 	string const ir = yul::reindent(generate(_contract, _cborMetadata, _otherYulSources));
 
-	yul::AssemblyStack asmStack(m_evmVersion, yul::AssemblyStack::Language::StrictAssembly, m_optimiserSettings);
+	yul::AssemblyStack asmStack(
+		m_evmVersion,
+		yul::AssemblyStack::Language::StrictAssembly,
+		m_optimiserSettings,
+		m_context.debugInfoSelection()
+	);
 	if (!asmStack.parseAndAnalyze("", ir))
 	{
 		string errorMessage;
@@ -116,7 +121,7 @@ pair<string, string> IRGenerator::run(
 		" *                !USE AT YOUR OWN RISK!               *\n"
 		" *=====================================================*/\n\n";
 
-	return {warning + ir, warning + asmStack.print(m_context.debugInfoSelection(), m_context.soliditySourceProvider())};
+	return {warning + ir, warning + asmStack.print(m_context.soliditySourceProvider())};
 }
 
 string IRGenerator::generate(
