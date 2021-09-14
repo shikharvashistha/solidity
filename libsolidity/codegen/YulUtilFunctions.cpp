@@ -3254,7 +3254,7 @@ string YulUtilFunctions::conversionFunction(Type const& _from, Type const& _to)
 			return bytesToFixedBytesConversionFunction(fromArrayType, dynamic_cast<FixedBytesType const &>(_to));
 		}
 		solAssert(_to.category() == Type::Category::Array, "");
-		return arrayConversionFunction(fromArrayType, dynamic_cast<ArrayType const&>(_to));
+		return arrayConversionFuncti:on(fromArrayType, dynamic_cast<ArrayType const&>(_to));
 	}
 
 	if (_from.sizeOnStack() != 1 || _to.sizeOnStack() != 1)
@@ -3419,7 +3419,18 @@ string YulUtilFunctions::conversionFunction(Type const& _from, Type const& _to)
 		}
 		case Type::Category::Tuple:
 		{
-			solUnimplementedAssert(false, "Tuple conversion not implemented.");
+			TupleType const& tupleType = dynamic_cast<decltype(tupleType)>(_from);
+			solAssert(tupleType.isArrayLiteral(), "Tuple conversion not implemented.");
+			ArrayType const* arrayType = dynamic_cast<ArrayType const*>(&_to);
+			solAssert(arrayType, "");
+			solUnimplementedAssert(arrayType->dataStoredIn(DataLocation::Memory), "");
+			// TODO access and convert individual elements and then write to memory / storage
+			if (arrayType->isDynamicallySized())
+			{
+			}
+			// TODO
+
+
 			break;
 		}
 		case Type::Category::TypeType:
